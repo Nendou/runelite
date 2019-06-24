@@ -383,6 +383,11 @@ public class MenuEntrySwapperPlugin extends Plugin
 				swap("teleport", option, target, true);
 			}
 
+			if (config.swapHardWoodGrove() && target.contains("rionasta"))
+			{
+				swap("send-parcel", option, target, true);
+			}
+
 			if (config.swapBank())
 			{
 				swap("bank", option, target, true);
@@ -413,6 +418,7 @@ public class MenuEntrySwapperPlugin extends Plugin
 			{
 				swap("trade", option, target, true);
 				swap("trade-with", option, target, true);
+				swap("shop", option, target, true);
 			}
 
 			if (config.claimSlime() && target.equals("robin"))
@@ -457,6 +463,10 @@ public class MenuEntrySwapperPlugin extends Plugin
 		else if (config.swapTravel() && option.equals("open") && target.equals("gate"))
 		{
 			swap("pay-toll(10gp)", option, target, true);
+		}
+		else if (config.swapHardWoodGrove() && option.equals("open") && target.equals("hardwood grove doors"))
+		{
+			swap("quick-pay(100)", option, target, true);
 		}
 		else if (config.swapTravel() && option.equals("inspect") && target.equals("trapdoor"))
 		{
