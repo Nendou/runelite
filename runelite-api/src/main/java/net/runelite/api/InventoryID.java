@@ -58,10 +58,6 @@ public enum InventoryID
 	 */
 	MONKEY_MADNESS_PUZZLE_BOX(221),
 	/**
-	 * Drift net fishing reward
-	 */
-	DRIFT_NET_FISHING_REWARD(307),
-	/**
 	 * Kingdom Of Miscellania reward inventory.
 	 */
 	KINGDOM_OF_MISCELLANIA(390),

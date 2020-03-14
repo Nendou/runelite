@@ -85,7 +85,15 @@ class LapCounterOverlay extends Overlay
 			.right(Integer.toString(session.getTotalLaps()))
 			.build());
 
-		if (config.lapsToLevel() && session.getLapsTillGoal() > 0)
+		if (config.lapsToLevel() && session.getLapsTillLevel() > 0)
+		{
+			panelComponent.getChildren().add(LineComponent.builder()
+				.left("Laps until level:")
+				.right(Integer.toString(session.getLapsTillLevel()))
+				.build());
+		}
+
+		if (config.lapsToGoal() && session.getLapsTillGoal() > 0)
 		{
 			panelComponent.getChildren().add(LineComponent.builder()
 				.left("Laps until goal:")

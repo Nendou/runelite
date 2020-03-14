@@ -37,21 +37,13 @@ public class Hitsplat
 	public enum HitsplatType
 	{
 		/**
-		 * Blocking damage by me (blue).
+		 * Blocking damage (blue).
 		 */
-		BLOCK_ME,
+		BLOCK,
 		/**
-		 * Blocking damage by others (blue).
+		 * Taking damage (red).
 		 */
-		BLOCK_OTHER,
-		/**
-		 * Taking damage by me (red).
-		 */
-		DAMAGE_ME,
-		/**
-		 * Taking damage by others (red).
-		 */
-		DAMAGE_OTHER,
+		DAMAGE,
 		/**
 		 * Damage from poison (green).
 		 */
@@ -80,10 +72,8 @@ public class Hitsplat
 		{
 			switch (type)
 			{
-				case 12: return BLOCK_ME;
-				case 13: return BLOCK_OTHER;
-				case 16: return DAMAGE_ME;
-				case 17: return DAMAGE_OTHER;
+				case 0: return BLOCK;
+				case 1: return DAMAGE;
 				case 2: return POISON;
 				case 4: return DISEASE;
 				case 5: return VENOM;

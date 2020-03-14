@@ -151,8 +151,8 @@ class OpponentInfoOverlay extends Overlay
 		panelComponent.getChildren().clear();
 
 		// Opponent name
-		int panelWidth = Math.max(ComponentConstants.STANDARD_WIDTH, fontMetrics.stringWidth(opponentName) + ComponentConstants.STANDARD_BORDER + ComponentConstants.STANDARD_BORDER);
-		panelComponent.setPreferredSize(new Dimension(panelWidth, 0));
+		int textWidth = Math.max(ComponentConstants.STANDARD_WIDTH, fontMetrics.stringWidth(opponentName));
+		panelComponent.setPreferredSize(new Dimension(textWidth, 0));
 		panelComponent.getChildren().add(TitleComponent.builder()
 			.text(opponentName)
 			.build());
@@ -221,8 +221,8 @@ class OpponentInfoOverlay extends Overlay
 		// Opponents opponent
 		if (opponentsOpponentName != null && opponentInfoConfig.showOpponentsOpponent())
 		{
-			panelWidth = Math.max(panelWidth, fontMetrics.stringWidth(opponentsOpponentName) + ComponentConstants.STANDARD_BORDER + ComponentConstants.STANDARD_BORDER);
-			panelComponent.setPreferredSize(new Dimension(panelWidth, 0));
+			textWidth = Math.max(textWidth, fontMetrics.stringWidth(opponentsOpponentName));
+			panelComponent.setPreferredSize(new Dimension(textWidth, 0));
 			panelComponent.getChildren().add(TitleComponent.builder()
 				.text(opponentsOpponentName)
 				.build());

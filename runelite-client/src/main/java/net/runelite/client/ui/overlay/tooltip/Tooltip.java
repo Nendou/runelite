@@ -24,22 +24,12 @@
  */
 package net.runelite.client.ui.overlay.tooltip;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
-import net.runelite.client.ui.overlay.components.LayoutableRenderableEntity;
 
 @Data
+@AllArgsConstructor
 public class Tooltip
 {
-	private String text;
-	private LayoutableRenderableEntity component;
-
-	public Tooltip(final String text)
-	{
-		this.text = text;
-	}
-
-	public Tooltip(final LayoutableRenderableEntity component)
-	{
-		this.component = component;
-	}
+	private final String text;
 }

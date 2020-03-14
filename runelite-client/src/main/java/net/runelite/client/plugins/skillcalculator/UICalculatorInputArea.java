@@ -98,7 +98,7 @@ class UICalculatorInputArea extends JPanel
 	{
 		try
 		{
-			return Integer.parseInt(field.getText().replaceAll("\\D", ""));
+			return Integer.parseInt(field.getText());
 		}
 		catch (NumberFormatException e)
 		{

@@ -1,7 +1,6 @@
 /*
  * Copyright (c) 2018, terminatusx <jbfleischman@gmail.com>
  * Copyright (c) 2018, Adam <Adam@sigterm.info>
- * Copyright (c) 2020, loldudester <HannahRyanster@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,9 +69,6 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.plugins.wintertodt.config.WintertodtNotifyDamage;
-import static net.runelite.client.plugins.wintertodt.config.WintertodtNotifyDamage.ALWAYS;
-import static net.runelite.client.plugins.wintertodt.config.WintertodtNotifyDamage.INTERRUPT;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ColorUtil;
 
@@ -294,6 +290,7 @@ public class WintertodtPlugin extends Plugin
 		}
 
 		boolean wasInterrupted = false;
+		boolean wasDamaged = false;
 		boolean neverNotify = false;
 
 		switch (interruptType)
@@ -301,6 +298,7 @@ public class WintertodtPlugin extends Plugin
 			case COLD:
 			case BRAZIER:
 			case SNOWFALL:
+				wasDamaged = true;
 
 				// Recolor message for damage notification
 				messageNode.setRuneLiteFormatMessage(ColorUtil.wrapWithColorTag(messageNode.getValue(), config.damageNotificationColor()));
@@ -329,28 +327,23 @@ public class WintertodtPlugin extends Plugin
 		if (!neverNotify)
 		{
 			boolean shouldNotify = false;
-			switch (interruptType)
+
+			switch (config.notifyCondition())
 			{
-				case COLD:
-					WintertodtNotifyDamage notify = config.notifyCold();
-					shouldNotify = notify == ALWAYS || (notify == INTERRUPT && wasInterrupted);
+				case ONLY_WHEN_INTERRUPTED:
+					if (wasInterrupted)
+					{
+						shouldNotify = true;
+					}
 					break;
-				case SNOWFALL:
-					notify = config.notifySnowfall();
-					shouldNotify = notify == ALWAYS || (notify == INTERRUPT && wasInterrupted);
+				case WHEN_DAMAGED:
+					if (wasDamaged)
+					{
+						shouldNotify = true;
+					}
 					break;
-				case BRAZIER:
-					notify = config.notifyBrazierDamage();
-					shouldNotify = notify == ALWAYS || (notify == INTERRUPT && wasInterrupted);
-					break;
-				case INVENTORY_FULL:
-					shouldNotify = config.notifyFullInv();
-					break;
-				case OUT_OF_ROOTS:
-					shouldNotify = config.notifyEmptyInv();
-					break;
-				case BRAZIER_WENT_OUT:
-					shouldNotify = config.notifyBrazierOut();
+				case EITHER:
+					shouldNotify = true;
 					break;
 			}
 

@@ -34,7 +34,6 @@ import net.runelite.api.Client;
 import net.runelite.api.Player;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.ChatMessage;
-import net.runelite.client.account.SessionManager;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 import net.runelite.http.api.loottracker.LootRecordType;
@@ -72,10 +71,6 @@ public class LootTrackerPluginTest
 	@Mock
 	@Bind
 	private LootTrackerConfig lootTrackerConfig;
-
-	@Mock
-	@Bind
-	private SessionManager sessionManager;
 
 	@Before
 	public void setUp()

@@ -35,8 +35,8 @@ public class KitDefinition
 	public short[] retextureToFind;
 	public short[] retextureToReplace;
 	public int bodyPartId = -1;
-	public int[] models;
-	public int[] chatheadModels = new int[]
+	public int[] modelIds;
+	public int[] models = new int[]
 	{
 		-1, -1, -1, -1, -1
 	};
