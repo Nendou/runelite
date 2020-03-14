@@ -66,21 +66,10 @@ public interface ChatFilterConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "filteredNames",
-		name = "Filtered Names",
-		description = "List of filtered names, one per line. Accepts regular expressions",
-		position = 4
-	)
-	default String filteredNames()
-	{
-		return "";
-	}
-
-	@ConfigItem(
 		keyName = "filterFriends",
 		name = "Filter Friends",
 		description = "Filter your friends' messages",
-		position = 5
+		position = 4
 	)
 	default boolean filterFriends()
 	{
@@ -91,7 +80,7 @@ public interface ChatFilterConfig extends Config
 		keyName = "filterClan",
 		name = "Filter Clan Chat Members",
 		description = "Filter your clan chat members' messages",
-		position = 6
+		position = 5
 	)
 	default boolean filterClan()
 	{
@@ -102,7 +91,7 @@ public interface ChatFilterConfig extends Config
 		keyName = "filterLogin",
 		name = "Filter Logged In/Out Messages",
 		description = "Filter your private chat to remove logged in/out messages",
-		position = 7
+		position = 6
 	)
 	default boolean filterLogin()
 	{

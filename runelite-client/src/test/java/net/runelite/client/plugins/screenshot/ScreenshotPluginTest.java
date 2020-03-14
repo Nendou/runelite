@@ -44,7 +44,6 @@ import net.runelite.client.Notifier;
 import net.runelite.client.config.RuneLiteConfig;
 import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.DrawManager;
-import net.runelite.client.ui.overlay.OverlayManager;
 import static org.junit.Assert.assertEquals;
 import org.junit.Before;
 import org.junit.Test;
@@ -97,10 +96,6 @@ public class ScreenshotPluginTest
 	@Mock
 	@Bind
 	ScheduledExecutorService service;
-
-	@Mock
-	@Bind
-	private OverlayManager overlayManager;
 
 	@Before
 	public void before()

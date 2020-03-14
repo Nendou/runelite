@@ -38,9 +38,4 @@ class RockRespawn
 	private final Instant startTime;
 	private final int respawnTime;
 	private final int zOffset;
-
-	boolean isExpired()
-	{
-		return Instant.now().isAfter(startTime.plusMillis(respawnTime));
-	}
 }

@@ -32,21 +32,23 @@ import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
+import lombok.Setter;
 import net.runelite.api.ItemComposition;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.components.IconTextField;
 import net.runelite.client.ui.components.PluginErrorPanel;
-import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.http.api.item.ItemPrice;
-import net.runelite.http.api.item.ItemStats;
 
 /**
  * This panel holds the search section of the Grand Exchange Plugin.
@@ -77,6 +79,9 @@ class GrandExchangeSearchPanel extends JPanel
 	private final PluginErrorPanel errorPanel = new PluginErrorPanel();
 
 	private final List<GrandExchangeItems> itemsList = new ArrayList<>();
+
+	@Setter
+	private Map<Integer, Integer> itemGELimits = Collections.emptyMap();
 
 	GrandExchangeSearchPanel(ClientThread clientThread, ItemManager itemManager, ScheduledExecutorService executor)
 	{
@@ -204,10 +209,13 @@ class GrandExchangeSearchPanel extends JPanel
 			int itemId = item.getId();
 
 			ItemComposition itemComp = itemManager.getItemComposition(itemId);
-			ItemStats itemStats = itemManager.getItemStats(itemId, false);
+			if (itemComp == null)
+			{
+				continue;
+			}
 
 			int itemPrice = item.getPrice();
-			int itemLimit = itemStats != null ? itemStats.getGeLimit() : 0;
+			int itemLimit = itemGELimits.getOrDefault(itemId, 0);
 			AsyncBufferedImage itemImage = itemManager.getImage(itemId);
 
 			itemsList.add(new GrandExchangeItems(itemImage, item.getName(), itemId, itemPrice, itemComp.getPrice() * 0.6, itemLimit));

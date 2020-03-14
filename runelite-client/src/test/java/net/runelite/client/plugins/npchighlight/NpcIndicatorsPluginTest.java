@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.inject.Inject;
 import net.runelite.api.Client;
-import net.runelite.client.ui.overlay.OverlayManager;
 import static org.junit.Assert.assertEquals;
 import org.junit.Before;
 import org.junit.Test;
@@ -58,10 +57,6 @@ public class NpcIndicatorsPluginTest
 
 	@Inject
 	private NpcIndicatorsPlugin npcIndicatorsPlugin;
-
-	@Mock
-	@Bind
-	private OverlayManager overlayManager;
 
 	@Before
 	public void setUp()

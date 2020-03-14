@@ -24,7 +24,6 @@
  */
 package net.runelite.client.plugins.itemstats;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -43,17 +42,15 @@ import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.tooltip.Tooltip;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 import net.runelite.client.util.ColorUtil;
-import net.runelite.client.util.QuantityFormatter;
 import net.runelite.http.api.item.ItemEquipmentStats;
 import net.runelite.http.api.item.ItemStats;
 
 public class ItemStatOverlay extends Overlay
 {
-	// Unarmed attack speed is 4
-	@VisibleForTesting
-	static final ItemStats UNARMED = new ItemStats(false, true, 0, 0,
+	// Unarmed attack speed is 6
+	private static final ItemStats UNARMED = new ItemStats(false, true, 0,
 		ItemEquipmentStats.builder()
-			.aspeed(4)
+			.aspeed(6)
 			.build());
 
 	@Inject
@@ -92,13 +89,9 @@ public class ItemStatOverlay extends Overlay
 		final int child = WidgetInfo.TO_CHILD(entry.getParam1());
 		final Widget widget = client.getWidget(group, child);
 
-		if (widget == null
-			|| !(group == WidgetInfo.INVENTORY.getGroupId()
-				|| group == WidgetInfo.EQUIPMENT.getGroupId()
-				|| group == WidgetInfo.EQUIPMENT_INVENTORY_ITEMS_CONTAINER.getGroupId()
-				|| (config.showStatsInBank()
-					&& (group == WidgetInfo.BANK_ITEM_CONTAINER.getGroupId()
-						|| group == WidgetInfo.BANK_INVENTORY_ITEMS_CONTAINER.getGroupId()))))
+		if (widget == null || (group != WidgetInfo.INVENTORY.getGroupId() &&
+			group != WidgetInfo.EQUIPMENT.getGroupId() &&
+			group != WidgetInfo.EQUIPMENT_INVENTORY_ITEMS_CONTAINER.getGroupId()))
 		{
 			return null;
 		}
@@ -113,18 +106,12 @@ public class ItemStatOverlay extends Overlay
 				itemId = widgetItem.getItemId();
 			}
 		}
-		else if (group == WidgetInfo.EQUIPMENT_INVENTORY_ITEMS_CONTAINER.getGroupId()
-			|| group == WidgetInfo.BANK_ITEM_CONTAINER.getGroupId()
-			|| group == WidgetInfo.BANK_INVENTORY_ITEMS_CONTAINER.getGroupId())
+		else if (group == WidgetInfo.EQUIPMENT_INVENTORY_ITEMS_CONTAINER.getGroupId())
 		{
-			int index = entry.getParam0();
-			if (index > -1)
+			final Widget widgetItem = widget.getChild(entry.getParam0());
+			if (widgetItem != null)
 			{
-				final Widget widgetItem = widget.getChild(index);
-				if (widgetItem != null)
-				{
-					itemId = widgetItem.getItemId();
-				}
+				itemId = widgetItem.getItemId();
 			}
 		}
 
@@ -169,6 +156,7 @@ public class ItemStatOverlay extends Overlay
 	}
 
 	private String getChangeString(
+		final String label,
 		final double value,
 		final boolean inverse,
 		final boolean showPercent)
@@ -194,51 +182,18 @@ public class ItemStatOverlay extends Overlay
 
 		final String prefix = value > 0 ? "+" : "";
 		final String suffix = showPercent ? "%" : "";
-		final String valueString = QuantityFormatter.formatNumber(value);
-		return ColorUtil.wrapWithColorTag(prefix + valueString + suffix, color);
+		final String valueString = (int)value == value ? String.valueOf((int)value) : String.valueOf(value);
+		return label + ": " + ColorUtil.wrapWithColorTag(prefix + valueString + suffix, color) + "</br>";
 	}
 
-	private String buildStatRow(
-		final String label,
-		final double value,
-		final double diffValue,
-		final boolean inverse,
-		final boolean showPercent)
-	{
-		return buildStatRow(label, value, diffValue, inverse, showPercent, true);
-	}
-
-	private String buildStatRow(
-		final String label,
-		final double value,
-		final double diffValue,
-		final boolean inverse,
-		final boolean showPercent,
-		final boolean showBase)
+	private String buildStatBonusString(ItemStats s)
 	{
 		final StringBuilder b = new StringBuilder();
-
-		if (value != 0 || diffValue != 0)
+		if (config.showWeight())
 		{
-			final String changeStr = getChangeString(diffValue, inverse, showPercent);
-
-			if (config.alwaysShowBaseStats() && showBase)
-			{
-				final String valueStr = QuantityFormatter.formatNumber(value);
-				b.append(label).append(": ").append(valueStr).append((!changeStr.isEmpty() ? " (" + changeStr + ") " : "")).append("</br>");
-			}
-			else if (!changeStr.isEmpty())
-			{
-				b.append(label).append(": ").append(changeStr).append("</br>");
-			}
+			b.append(getChangeString("Weight", s.getWeight(), true, false));
 		}
 
-		return b.toString();
-	}
-
-	@VisibleForTesting
-	String buildStatBonusString(ItemStats s)
-	{
 		ItemStats other = null;
 		final ItemEquipmentStats currentEquipment = s.getEquipment();
 
@@ -267,44 +222,32 @@ public class ItemStatOverlay extends Overlay
 		final ItemStats subtracted = s.subtract(other);
 		final ItemEquipmentStats e = subtracted.getEquipment();
 
-		final StringBuilder b = new StringBuilder();
-
-		if (config.showWeight())
-		{
-			double sw = config.alwaysShowBaseStats() ? subtracted.getWeight() : s.getWeight();
-			b.append(buildStatRow("Weight", s.getWeight(), sw, true, false, s.isEquipable()));
-		}
-
 		if (subtracted.isEquipable() && e != null)
 		{
-			b.append(buildStatRow("Prayer", currentEquipment.getPrayer(), e.getPrayer(), false, false));
-			b.append(buildStatRow("Speed", currentEquipment.getAspeed(), e.getAspeed(), true, false));
-			b.append(buildStatRow("Melee Str", currentEquipment.getStr(), e.getStr(), false, false));
-			b.append(buildStatRow("Range Str", currentEquipment.getRstr(), e.getRstr(), false, false));
-			b.append(buildStatRow("Magic Dmg", currentEquipment.getMdmg(), e.getMdmg(), false, true));
+			b.append(getChangeString("Prayer", e.getPrayer(), false, false));
+			b.append(getChangeString("Speed", e.getAspeed(), true, false));
+			b.append(getChangeString("Melee Str", e.getStr(), false, false));
+			b.append(getChangeString("Range Str", e.getRstr(), false, false));
+			b.append(getChangeString("Magic Dmg", e.getMdmg(), false, true));
 
-			final StringBuilder abb = new StringBuilder();
-			abb.append(buildStatRow("Stab", currentEquipment.getAstab(), e.getAstab(), false, false));
-			abb.append(buildStatRow("Slash", currentEquipment.getAslash(), e.getAslash(), false, false));
-			abb.append(buildStatRow("Crush", currentEquipment.getAcrush(), e.getAcrush(), false, false));
-			abb.append(buildStatRow("Magic", currentEquipment.getAmagic(), e.getAmagic(), false, false));
-			abb.append(buildStatRow("Range", currentEquipment.getArange(), e.getArange(), false, false));
-
-			if (abb.length() > 0)
+			if (e.getAstab() != 0 || e.getAslash() != 0 || e.getAcrush() != 0 || e.getAmagic() != 0 || e.getArange() != 0)
 			{
-				b.append(ColorUtil.wrapWithColorTag("Attack Bonus</br>", JagexColors.MENU_TARGET)).append(abb);
+				b.append(ColorUtil.wrapWithColorTag("Attack Bonus</br>", JagexColors.MENU_TARGET));
+				b.append(getChangeString("Stab", e.getAstab(), false, false));
+				b.append(getChangeString("Slash", e.getAslash(), false, false));
+				b.append(getChangeString("Crush", e.getAcrush(), false, false));
+				b.append(getChangeString("Magic", e.getAmagic(), false, false));
+				b.append(getChangeString("Range", e.getArange(), false, false));
 			}
 
-			final StringBuilder dbb = new StringBuilder();
-			dbb.append(buildStatRow("Stab", currentEquipment.getDstab(), e.getDstab(), false, false));
-			dbb.append(buildStatRow("Slash", currentEquipment.getDslash(), e.getDslash(), false, false));
-			dbb.append(buildStatRow("Crush", currentEquipment.getDcrush(), e.getDcrush(), false, false));
-			dbb.append(buildStatRow("Magic", currentEquipment.getDmagic(), e.getDmagic(), false, false));
-			dbb.append(buildStatRow("Range", currentEquipment.getDrange(), e.getDrange(), false, false));
-
-			if (dbb.length() > 0)
+			if (e.getDstab() != 0 || e.getDslash() != 0 || e.getDcrush() != 0 || e.getDmagic() != 0 || e.getDrange() != 0)
 			{
-				b.append(ColorUtil.wrapWithColorTag("Defence Bonus</br>", JagexColors.MENU_TARGET)).append(dbb);
+				b.append(ColorUtil.wrapWithColorTag("Defence Bonus</br>", JagexColors.MENU_TARGET));
+				b.append(getChangeString("Stab", e.getDstab(), false, false));
+				b.append(getChangeString("Slash", e.getDslash(), false, false));
+				b.append(getChangeString("Crush", e.getDcrush(), false, false));
+				b.append(getChangeString("Magic", e.getDmagic(), false, false));
+				b.append(getChangeString("Range", e.getDrange(), false, false));
 			}
 		}
 

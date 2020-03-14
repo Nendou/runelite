@@ -220,7 +220,7 @@ public class ObjectLoader
 		}
 		else if (opcode == 69)
 		{
-			def.setBlockingMask(is.readByte());
+			is.readByte();
 		}
 		else if (opcode == 70)
 		{

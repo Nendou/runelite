@@ -27,7 +27,6 @@ package net.runelite.client.plugins.inventorygrid;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
-import net.runelite.client.config.Units;
 
 @ConfigGroup("inventorygrid")
 public interface InventoryGridConfig extends Config
@@ -60,16 +59,5 @@ public interface InventoryGridConfig extends Config
 	default boolean showHighlight()
 	{
 		return true;
-	}
-
-	@ConfigItem(
-		keyName = "dragDelay",
-		name = "Drag delay",
-		description = "Time to wait after an item press before the overlay is enabled"
-	)
-	@Units(Units.MILLISECONDS)
-	default int dragDelay()
-	{
-		return 0;
 	}
 }

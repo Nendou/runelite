@@ -64,8 +64,6 @@ import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.FlashNotification;
 import net.runelite.client.config.RuneLiteConfig;
-import net.runelite.client.eventbus.EventBus;
-import net.runelite.client.events.NotificationFired;
 import net.runelite.client.ui.ClientUI;
 import net.runelite.client.util.OSType;
 
@@ -109,7 +107,6 @@ public class Notifier
 	private final ClientUI clientUI;
 	private final ScheduledExecutorService executorService;
 	private final ChatMessageManager chatMessageManager;
-	private final EventBus eventBus;
 	private final Path notifyIconPath;
 	private final boolean terminalNotifierAvailable;
 	private Instant flashStart;
@@ -121,15 +118,13 @@ public class Notifier
 		final Client client,
 		final RuneLiteConfig runeliteConfig,
 		final ScheduledExecutorService executorService,
-		final ChatMessageManager chatMessageManager,
-		final EventBus eventBus)
+		final ChatMessageManager chatMessageManager)
 	{
 		this.client = client;
 		this.clientUI = clientUI;
 		this.runeLiteConfig = runeliteConfig;
 		this.executorService = executorService;
 		this.chatMessageManager = chatMessageManager;
-		this.eventBus = eventBus;
 		this.notifyIconPath = RuneLite.RUNELITE_DIR.toPath().resolve("icon.png");
 
 		// First check if we are running in launcher
@@ -147,8 +142,6 @@ public class Notifier
 
 	public void notify(String message, TrayIcon.MessageType type)
 	{
-		eventBus.post(new NotificationFired(message, type));
-
 		if (!runeLiteConfig.sendNotificationsWhenFocused() && clientUI.isFocused())
 		{
 			return;

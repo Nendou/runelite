@@ -53,11 +53,11 @@ public class KitLoader
 			else if (opcode == 2)
 			{
 				int length = is.readUnsignedByte();
-				def.models = new int[length];
+				def.modelIds = new int[length];
 
 				for (int index = 0; index < length; ++index)
 				{
-					def.models[index] = is.readUnsignedShort();
+					def.modelIds[index] = is.readUnsignedShort();
 				}
 			}
 			else if (opcode == 3)
@@ -90,7 +90,7 @@ public class KitLoader
 			}
 			else if (opcode >= 60 && opcode < 70)
 			{
-				def.chatheadModels[opcode - 60] = is.readUnsignedShort();
+				def.models[opcode - 60] = is.readShort();
 			}
 		}
 

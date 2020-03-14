@@ -24,7 +24,6 @@
  */
 package net.runelite.client.ui.overlay.worldmap;
 
-import com.google.common.base.Splitter;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
@@ -55,8 +54,6 @@ public class WorldMapOverlay extends Overlay
 	private static final int TOOLTIP_OFFSET_WIDTH = 5;
 	private static final int TOOLTIP_PADDING_HEIGHT = 1;
 	private static final int TOOLTIP_PADDING_WIDTH = 2;
-
-	private static final Splitter TOOLTIP_SPLITTER = Splitter.on("<br>").trimResults().omitEmptyStrings();
 
 	private final WorldMapPointManager worldMapPointManager;
 	private final Client client;
@@ -263,13 +260,6 @@ public class WorldMapOverlay extends Overlay
 			return;
 		}
 
-		List<String> rows = TOOLTIP_SPLITTER.splitToList(tooltip);
-
-		if (rows.isEmpty())
-		{
-			return;
-		}
-
 		drawPoint = new Point(drawPoint.getX() + TOOLTIP_OFFSET_WIDTH, drawPoint.getY() + TOOLTIP_OFFSET_HEIGHT);
 
 		final Rectangle bounds = new Rectangle(0, 0, client.getCanvasWidth(), client.getCanvasHeight());
@@ -278,20 +268,16 @@ public class WorldMapOverlay extends Overlay
 		graphics.setColor(JagexColors.TOOLTIP_BACKGROUND);
 		graphics.setFont(FontManager.getRunescapeFont());
 		FontMetrics fm = graphics.getFontMetrics();
-		int width = rows.stream().map(fm::stringWidth).max(Integer::compareTo).get();
+		int width = fm.stringWidth(tooltip);
 		int height = fm.getHeight();
 
-		Rectangle tooltipRect = new Rectangle(drawPoint.getX() - TOOLTIP_PADDING_WIDTH, drawPoint.getY() - TOOLTIP_PADDING_HEIGHT, width + TOOLTIP_PADDING_WIDTH * 2, height * rows.size() + TOOLTIP_PADDING_HEIGHT * 2);
+		Rectangle tooltipRect = new Rectangle(drawPoint.getX() - TOOLTIP_PADDING_WIDTH, drawPoint.getY() - TOOLTIP_PADDING_HEIGHT, width + TOOLTIP_PADDING_WIDTH * 2, height + TOOLTIP_PADDING_HEIGHT * 2);
 		graphics.fillRect((int) tooltipRect.getX(), (int) tooltipRect.getY(), (int) tooltipRect.getWidth(), (int) tooltipRect.getHeight());
 
 		graphics.setColor(JagexColors.TOOLTIP_BORDER);
 		graphics.drawRect((int) tooltipRect.getX(), (int) tooltipRect.getY(), (int) tooltipRect.getWidth(), (int) tooltipRect.getHeight());
-
 		graphics.setColor(JagexColors.TOOLTIP_TEXT);
-		for (int i = 0; i < rows.size(); i++)
-		{
-			graphics.drawString(rows.get(i), drawPoint.getX(), drawPoint.getY() + (i + 1) * height);
-		}
+		graphics.drawString(tooltip, drawPoint.getX(), drawPoint.getY() + height);
 	}
 
 	private Point clipToRectangle(Point drawPoint, Rectangle mapDisplayRectangle)

@@ -28,8 +28,9 @@ import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
 import net.runelite.api.Client;
+import net.runelite.api.Experience;
 import net.runelite.api.Skill;
-import net.runelite.client.plugins.xptracker.XpTrackerService;
+import net.runelite.api.VarPlayer;
 
 @Getter
 @Setter
@@ -38,6 +39,7 @@ class AgilitySession
 	private final Courses course;
 	private Instant lastLapCompleted;
 	private int totalLaps;
+	private int lapsTillLevel;
 	private int lapsTillGoal;
 
 	AgilitySession(Courses course)
@@ -45,28 +47,30 @@ class AgilitySession
 		this.course = course;
 	}
 
-	void incrementLapCount(Client client, XpTrackerService xpTrackerService)
+	void incrementLapCount(Client client)
 	{
 		lastLapCompleted = Instant.now();
 		++totalLaps;
 
-		final int currentExp = client.getSkillExperience(Skill.AGILITY);
-		final int goalXp = xpTrackerService.getEndGoalXp(Skill.AGILITY);
-		final int goalRemainingXp = goalXp - currentExp;
-		double courseTotalExp = course.getTotalXp();
-		if (course == Courses.PYRAMID)
-		{
-			// agility pyramid has a bonus exp drop on the last obstacle that scales with player level and caps at 1000
-			// the bonus is not already accounted for in the total exp number in the courses enum
-			courseTotalExp += Math.min(300 + 8 * client.getRealSkillLevel(Skill.AGILITY), 1000);
-		}
+		int currentExp = client.getSkillExperience(Skill.AGILITY);
+		int nextLevel = client.getRealSkillLevel(Skill.AGILITY) + 1;
 
-		lapsTillGoal = goalRemainingXp > 0 ? (int) Math.ceil(goalRemainingXp / courseTotalExp) : 0;
+		int remainingXp;
+		do
+		{
+			remainingXp = nextLevel <= Experience.MAX_VIRT_LEVEL ? Experience.getXpForLevel(nextLevel) - currentExp : 0;
+			nextLevel++;
+		} while (remainingXp < 0);
+
+		lapsTillLevel = remainingXp > 0 ? (int) Math.ceil(remainingXp / course.getTotalXp()) : 0;
+		int goalRemainingXp = client.getVar(VarPlayer.AGILITY_GOAL_END) - currentExp;
+		lapsTillGoal = goalRemainingXp > 0 ? (int) Math.ceil(goalRemainingXp / course.getTotalXp()) : 0;
 	}
 
 	void resetLapCount()
 	{
 		totalLaps = 0;
+		lapsTillLevel = 0;
 		lapsTillGoal = 0;
 	}
 }
