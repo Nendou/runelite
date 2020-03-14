@@ -28,9 +28,11 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Provides;
+import java.awt.Desktop;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.time.LocalDate;
 import java.util.concurrent.ScheduledExecutorService;
@@ -80,7 +82,6 @@ import net.runelite.client.util.HotkeyListener;
 import net.runelite.client.util.ImageCapture;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
-import net.runelite.client.util.LinkBrowser;
 
 @PluginDescriptor(
 	name = "Screenshot",
@@ -159,7 +160,7 @@ public class ScreenshotPlugin extends Plugin
 		@Override
 		public void hotkeyPressed()
 		{
-			manualScreenshot();
+			takeScreenshot("");
 		}
 	};
 
@@ -182,12 +183,19 @@ public class ScreenshotPlugin extends Plugin
 			.tab(false)
 			.tooltip("Take screenshot")
 			.icon(iconImage)
-			.onClick(this::manualScreenshot)
+			.onClick(() -> takeScreenshot(""))
 			.popup(ImmutableMap
 				.<String, Runnable>builder()
 				.put("Open screenshot folder...", () ->
 				{
-					LinkBrowser.open(SCREENSHOT_DIR.toString());
+					try
+					{
+						Desktop.getDesktop().open(SCREENSHOT_DIR);
+					}
+					catch (IOException ex)
+					{
+						log.warn("Error opening screenshot dir", ex);
+					}
 				})
 				.build())
 			.build();
@@ -214,30 +222,26 @@ public class ScreenshotPlugin extends Plugin
 		}
 
 		shouldTakeScreenshot = false;
-		String screenshotSubDir = null;
 
 		String fileName = null;
 		if (client.getWidget(WidgetInfo.LEVEL_UP_LEVEL) != null)
 		{
 			fileName = parseLevelUpWidget(WidgetInfo.LEVEL_UP_LEVEL);
-			screenshotSubDir = "Levels";
 		}
 		else if (client.getWidget(WidgetInfo.DIALOG_SPRITE_TEXT) != null)
 		{
 			fileName = parseLevelUpWidget(WidgetInfo.DIALOG_SPRITE_TEXT);
-			screenshotSubDir = "Levels";
 		}
 		else if (client.getWidget(WidgetInfo.QUEST_COMPLETED_NAME_TEXT) != null)
 		{
 			// "You have completed The Corsair Curse!"
 			String text = client.getWidget(WidgetInfo.QUEST_COMPLETED_NAME_TEXT).getText();
 			fileName = "Quest(" + text.substring(19, text.length() - 1) + ")";
-			screenshotSubDir = "Quests";
 		}
 
 		if (fileName != null)
 		{
-			takeScreenshot(fileName, screenshotSubDir);
+			takeScreenshot(fileName);
 		}
 	}
 
@@ -247,11 +251,11 @@ public class ScreenshotPlugin extends Plugin
 		Player player = playerDeath.getPlayer();
 		if (player == client.getLocalPlayer() && config.screenshotPlayerDeath())
 		{
-			takeScreenshot("Death", "Deaths");
+			takeScreenshot("Death");
 		}
 		else if ((player.isClanMember() || player.isFriend()) && config.screenshotFriendDeath() && player.getCanvasTilePoly() != null)
 		{
-			takeScreenshot("Death " + player.getName(), "Deaths");
+			takeScreenshot("Death " + player.getName());
 		}
 	}
 
@@ -263,7 +267,7 @@ public class ScreenshotPlugin extends Plugin
 			final Player player = playerLootReceived.getPlayer();
 			final String name = player.getName();
 			String fileName = "Kill " + name;
-			takeScreenshot(fileName, "PvP Kills");
+			takeScreenshot(fileName);
 		}
 	}
 
@@ -331,7 +335,7 @@ public class ScreenshotPlugin extends Plugin
 		if (config.screenshotPet() && PET_MESSAGES.stream().anyMatch(chatMessage::contains))
 		{
 			String fileName = "Pet";
-			takeScreenshot(fileName, "Pets");
+			takeScreenshot(fileName);
 		}
 
 		if (config.screenshotBossKills() )
@@ -342,7 +346,7 @@ public class ScreenshotPlugin extends Plugin
 				String bossName = m.group(1);
 				String bossKillcount = m.group(2);
 				String fileName = bossName + "(" + bossKillcount + ")";
-				takeScreenshot(fileName, "Boss Kills");
+				takeScreenshot(fileName);
 			}
 		}
 
@@ -353,7 +357,7 @@ public class ScreenshotPlugin extends Plugin
 			{
 				String valuableDropName = m.group(1);
 				String fileName = "Valuable drop " + valuableDropName;
-				takeScreenshot(fileName, "Valuable Drops");
+				takeScreenshot(fileName);
 			}
 		}
 
@@ -364,7 +368,7 @@ public class ScreenshotPlugin extends Plugin
 			{
 				String untradeableDropName = m.group(1);
 				String fileName = "Untradeable drop " + untradeableDropName;
-				takeScreenshot(fileName, "Untradeable Drops");
+				takeScreenshot(fileName);
 			}
 		}
 
@@ -376,7 +380,7 @@ public class ScreenshotPlugin extends Plugin
 				String result = m.group(1);
 				String count = m.group(2);
 				String fileName = "Duel " + result + " (" + count + ")";
-				takeScreenshot(fileName, "Duels");
+				takeScreenshot(fileName);
 			}
 		}
 	}
@@ -385,7 +389,6 @@ public class ScreenshotPlugin extends Plugin
 	public void onWidgetLoaded(WidgetLoaded event)
 	{
 		String fileName;
-		String screenshotSubDir;
 		int groupId = event.getGroupId();
 
 		switch (groupId)
@@ -420,7 +423,6 @@ public class ScreenshotPlugin extends Plugin
 			case KINGDOM_GROUP_ID:
 			{
 				fileName = "Kingdom " + LocalDate.now();
-				screenshotSubDir = "Kingdom Rewards";
 				break;
 			}
 			case CHAMBERS_OF_XERIC_REWARD_GROUP_ID:
@@ -428,14 +430,12 @@ public class ScreenshotPlugin extends Plugin
 				if (chambersOfXericNumber != null)
 				{
 					fileName = "Chambers of Xeric(" + chambersOfXericNumber + ")";
-					screenshotSubDir = "Boss Kills";
 					chambersOfXericNumber = null;
 					break;
 				}
 				else if (chambersOfXericChallengeNumber != null)
 				{
 					fileName = "Chambers of Xeric Challenge Mode(" + chambersOfXericChallengeNumber + ")";
-					screenshotSubDir = "Boss Kills";
 					chambersOfXericChallengeNumber = null;
 					break;
 				}
@@ -452,7 +452,6 @@ public class ScreenshotPlugin extends Plugin
 				}
 
 				fileName = "Theatre of Blood(" + theatreOfBloodNumber + ")";
-				screenshotSubDir = "Boss Kills";
 				theatreOfBloodNumber = null;
 				break;
 			}
@@ -464,7 +463,6 @@ public class ScreenshotPlugin extends Plugin
 				}
 
 				fileName = "Barrows(" + barrowsNumber + ")";
-				screenshotSubDir = "Boss Kills";
 				barrowsNumber = null;
 				break;
 			}
@@ -484,7 +482,6 @@ public class ScreenshotPlugin extends Plugin
 				}
 
 				fileName = Character.toUpperCase(clueType.charAt(0)) + clueType.substring(1) + "(" + clueNumber + ")";
-				screenshotSubDir = "Clue Scroll Rewards";
 				clueType = null;
 				clueNumber = null;
 				break;
@@ -493,12 +490,7 @@ public class ScreenshotPlugin extends Plugin
 				return;
 		}
 
-		takeScreenshot(fileName, screenshotSubDir);
-	}
-
-	private void manualScreenshot()
-	{
-		takeScreenshot("", null);
+		takeScreenshot(fileName);
 	}
 
 	/**
@@ -533,9 +525,8 @@ public class ScreenshotPlugin extends Plugin
 	 * and optionally uploads it to an image-hosting service.
 	 *
 	 * @param fileName    Filename to use, without file extension.
-	 * @param subDir      Subdirectory to store the captured screenshot in.
 	 */
-	private void takeScreenshot(String fileName, String subDir)
+	private void takeScreenshot(String fileName)
 	{
 		if (client.getGameState() == GameState.LOGIN_SCREEN)
 		{
@@ -547,7 +538,7 @@ public class ScreenshotPlugin extends Plugin
 		Consumer<Image> imageCallback = (img) ->
 		{
 			// This callback is on the game thread, move to executor thread
-			executor.submit(() -> takeScreenshot(fileName, subDir, img));
+			executor.submit(() -> takeScreenshot(fileName, img));
 		};
 
 		if (config.displayDate())
@@ -560,7 +551,7 @@ public class ScreenshotPlugin extends Plugin
 		}
 	}
 
-	private void takeScreenshot(String fileName, String subDir, Image image)
+	private void takeScreenshot(String fileName, Image image)
 	{
 		BufferedImage screenshot = config.includeFrame()
 			? new BufferedImage(clientUi.getWidth(), clientUi.getHeight(), BufferedImage.TYPE_INT_ARGB)
@@ -591,7 +582,7 @@ public class ScreenshotPlugin extends Plugin
 
 		// Draw the game onto the screenshot
 		graphics.drawImage(image, gameOffsetX, gameOffsetY, null);
-		imageCapture.takeScreenshot(screenshot, fileName, subDir, config.notifyWhenTaken(), config.uploadScreenshot());
+		imageCapture.takeScreenshot(screenshot, fileName, config.notifyWhenTaken(), config.uploadScreenshot());
 	}
 
 	@VisibleForTesting

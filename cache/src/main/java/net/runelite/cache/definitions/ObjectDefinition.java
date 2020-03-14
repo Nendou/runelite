@@ -55,7 +55,6 @@ public class ObjectDefinition
 	private String[] actions = new String[5];
 	private int interactType = 2;
 	private int mapSceneID = -1;
-	private int blockingMask = 0;
 	private short[] recolorToReplace;
 	private boolean shadow = true;
 	private int modelSizeX = 128;

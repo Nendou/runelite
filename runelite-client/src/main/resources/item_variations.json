@@ -1405,13 +1405,11 @@
   ],
   "coal bag": [
     764,
-    12019,
-    24480
+    12019
   ],
   "gem bag": [
     766,
-    12020,
-    24481
+    12020
   ],
   "phoenix crossbow": [
     767,
@@ -7620,10 +7618,6 @@
     11736,
     11737
   ],
-  "herb box": [
-    11738,
-    11739
-  ],
   "armadyl crossbow": [
     11785,
     23611
@@ -7829,10 +7823,6 @@
   "box of chocolate strawberries": [
     11912,
     11914
-  ],
-  "slice of birthday cake": [
-    11916,
-    11917
   ],
   "dragon pickaxe": [
     11920,
@@ -8290,10 +8280,6 @@
     13222,
     13224
   ],
-  "herb sack": [
-    13226,
-    24478
-  ],
   "eternal boots": [
     13235,
     23644
@@ -8561,10 +8547,6 @@
   "dragon warhammer": [
     13576,
     20785
-  ],
-  "seed box": [
-    13639,
-    24482
   ],
   "farmers boro trousers": [
     13640,
@@ -9632,8 +9614,7 @@
     24209,
     24211,
     24213,
-    24215,
-    24520
+    24215
   ],
   "unsealed letter": [
     24256,

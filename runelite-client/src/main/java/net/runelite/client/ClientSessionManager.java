@@ -29,12 +29,9 @@ import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Client;
-import net.runelite.api.GameState;
 import net.runelite.client.util.RunnableExceptionLogger;
 
 @Singleton
@@ -43,16 +40,15 @@ public class ClientSessionManager
 {
 	private final SessionClient sessionClient = new SessionClient();
 	private final ScheduledExecutorService executorService;
-	private final Client client;
 
 	private ScheduledFuture<?> scheduledFuture;
 	private UUID sessionId;
 
+
 	@Inject
-	ClientSessionManager(ScheduledExecutorService executorService, @Nullable Client client)
+	ClientSessionManager(ScheduledExecutorService executorService)
 	{
 		this.executorService = executorService;
-		this.client = client;
 	}
 
 	public void start()
@@ -105,15 +101,9 @@ public class ClientSessionManager
 			return;
 		}
 
-		boolean loggedIn = false;
-		if (client != null)
-		{
-			loggedIn = client.getGameState() != GameState.LOGIN_SCREEN;
-		}
-
 		try
 		{
-			sessionClient.ping(sessionId, loggedIn);
+			sessionClient.ping(sessionId);
 		}
 		catch (IOException ex)
 		{

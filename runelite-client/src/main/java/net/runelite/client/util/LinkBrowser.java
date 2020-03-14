@@ -28,7 +28,6 @@ import com.google.common.base.Strings;
 import java.awt.Desktop;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -38,7 +37,7 @@ import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Utility class used for web and file browser navigation
+ * Utility class used for browser navigation
  */
 @Singleton
 @Slf4j
@@ -49,70 +48,37 @@ public class LinkBrowser
 	/**
 	 * Tries to navigate to specified URL in browser. In case operation fails, displays message box with message
 	 * and copies link to clipboard to navigate to.
+	 * @param url url to open
+	 * @return true if operation was successful
 	 */
-	public static void browse(final String url)
+	public static boolean browse(final String url)
 	{
-		new Thread(() ->
+		if (Strings.isNullOrEmpty(url))
 		{
-			if (Strings.isNullOrEmpty(url))
-			{
-				log.warn("LinkBrowser.browse() called with invalid input");
-				return;
-			}
+			return false;
+		}
 
-			if (attemptDesktopBrowse(url))
-			{
-				log.debug("Opened url through Desktop#browse to {}", url);
-				return;
-			}
+		if (attemptDesktopBrowse(url))
+		{
+			log.debug("Opened browser through Desktop#browse to {}", url);
+			return true;
+		}
 
-			if (shouldAttemptXdg && attemptXdgOpen(url))
-			{
-				log.debug("Opened url through xdg-open to {}", url);
-				return;
-			}
-			
-			log.warn("LinkBrowser.browse() could not open {}", url);
-			showMessageBox("Unable to open link. Press 'OK' and the link will be copied to your clipboard.", url);
-		}).start();
+		if (shouldAttemptXdg && attemptXdgOpen(url))
+		{
+			log.debug("Opened browser through xdg-open to {}", url);
+			return true;
+		}
+
+		showMessageBox("Unable to open link. Press 'OK' and link will be copied to your clipboard.", url);
+		return false;
 	}
 
-	/**
-	 * Tries to open a directory in the OS native file manager.
-	 * @param directory directory to open
-	 */
-	public static void open(final String directory)
-	{
-		new Thread(() ->
-		{
-			if (Strings.isNullOrEmpty(directory))
-			{
-				log.warn("LinkBrowser.open() called with invalid input");
-				return;
-			}
-
-			if (attemptDesktopOpen(directory))
-			{
-				log.debug("Opened directory through Desktop#open to {}", directory);
-				return;
-			}
-
-			if (shouldAttemptXdg && attemptXdgOpen(directory))
-			{
-				log.debug("Opened directory through xdg-open to {}", directory);
-				return;
-			}
-			
-			log.warn("LinkBrowser.open() could not open {}", directory);
-			showMessageBox("Unable to open folder. Press 'OK' and the folder directory will be copied to your clipboard.", directory);
-		}).start();
-	}
-
-	private static boolean attemptXdgOpen(String resource)
+	private static boolean attemptXdgOpen(String url)
 	{
 		try
 		{
-			final Process exec = Runtime.getRuntime().exec(new String[]{"xdg-open", resource});
+			final Process exec = Runtime.getRuntime().exec(new String[]{"xdg-open", url});
 			exec.waitFor();
 
 			final int ret = exec.exitValue();
@@ -121,7 +87,7 @@ public class LinkBrowser
 				return true;
 			}
 
-			log.warn("xdg-open {} returned with error code {}", resource, ret);
+			log.warn("xdg-open {} returned with error code {}", url, ret);
 			return false;
 		}
 		catch (IOException ex)
@@ -132,7 +98,7 @@ public class LinkBrowser
 		}
 		catch (InterruptedException ex)
 		{
-			log.warn("Interrupted while waiting for xdg-open {} to execute", resource);
+			log.warn("Interrupted while waiting for xdg-open {} to execute", url);
 			return false;
 		}
 	}
@@ -158,33 +124,7 @@ public class LinkBrowser
 		}
 		catch (IOException | URISyntaxException ex)
 		{
-			log.warn("Failed to open Desktop#browse {}", url, ex);
-			return false;
-		}
-	}
-
-	private static boolean attemptDesktopOpen(String directory)
-	{
-		if (!Desktop.isDesktopSupported())
-		{
-			return false;
-		}
-
-		final Desktop desktop = Desktop.getDesktop();
-
-		if (!desktop.isSupported(Desktop.Action.OPEN))
-		{
-			return false;
-		}
-
-		try
-		{
-			desktop.open(new File(directory));
-			return true;
-		}
-		catch (IOException ex)
-		{
-			log.warn("Failed to open Desktop#open {}", directory, ex);
+			log.warn("Failed to open Desktop#browser {}", url, ex);
 			return false;
 		}
 	}

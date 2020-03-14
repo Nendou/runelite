@@ -33,20 +33,19 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.HealthBar;
-import net.runelite.api.ScriptID;
 import net.runelite.api.SpriteID;
 import net.runelite.api.SpritePixels;
 import net.runelite.api.events.BeforeMenuRender;
+import net.runelite.api.events.ClientTick;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.PostHealthBar;
 import net.runelite.api.events.ScriptCallbackEvent;
-import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -120,12 +119,9 @@ public class InterfaceStylesPlugin extends Plugin
 	}
 
 	@Subscribe
-	public void onScriptPostFired(ScriptPostFired scriptPostFired)
+	public void onClientTick(ClientTick event)
 	{
-		if (scriptPostFired.getScriptId() == ScriptID.TOPLEVEL_RESIZE)
-		{
-			adjustWidgetDimensions();
-		}
+		adjustWidgetDimensions();
 	}
 
 	@Subscribe
@@ -186,17 +182,13 @@ public class InterfaceStylesPlugin extends Plugin
 
 	private void overrideSprites()
 	{
-		final Skin configuredSkin = config.skin();
 		for (SpriteOverride spriteOverride : SpriteOverride.values())
 		{
 			for (Skin skin : spriteOverride.getSkin())
 			{
-				if (skin == configuredSkin)
+				if (skin == config.skin())
 				{
-					final String configSkin = skin.getExtendSkin() != null
-						? skin.getExtendSkin().toString()
-						: skin.toString();
-					String file = configSkin + "/" + spriteOverride.getSpriteID() + ".png";
+					String file = config.skin().toString() + "/" + spriteOverride.getSpriteID() + ".png";
 					SpritePixels spritePixels = getFileSpritePixels(file);
 
 					if (spriteOverride.getSpriteID() == SpriteID.COMPASS_TEXTURE)
@@ -224,16 +216,11 @@ public class InterfaceStylesPlugin extends Plugin
 
 	private void overrideWidgetSprites()
 	{
-		final Skin configuredSkin = config.skin();
 		for (WidgetOverride widgetOverride : WidgetOverride.values())
 		{
-			if (widgetOverride.getSkin() == configuredSkin
-				|| widgetOverride.getSkin() == configuredSkin.getExtendSkin())
+			if (widgetOverride.getSkin() == config.skin())
 			{
-				final String configSkin = configuredSkin.getExtendSkin() != null
-					? configuredSkin.getExtendSkin().toString()
-					: configuredSkin.toString();
-				String file = configSkin + "/widget/" + widgetOverride.getName() + ".png";
+				String file = config.skin().toString() + "/widget/" + widgetOverride.getName() + ".png";
 				SpritePixels spritePixels = getFileSpritePixels(file);
 
 				if (spritePixels != null)

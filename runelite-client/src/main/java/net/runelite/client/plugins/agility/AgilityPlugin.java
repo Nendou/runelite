@@ -67,10 +67,7 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.AgilityShortcut;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
-import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.plugins.xptracker.XpTrackerPlugin;
-import net.runelite.client.plugins.xptracker.XpTrackerService;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 
@@ -79,7 +76,6 @@ import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 	description = "Show helpful information about agility courses and obstacles",
 	tags = {"grace", "marks", "overlay", "shortcuts", "skilling", "traps"}
 )
-@PluginDependency(XpTrackerPlugin.class)
 @Slf4j
 public class AgilityPlugin extends Plugin
 {
@@ -114,9 +110,6 @@ public class AgilityPlugin extends Plugin
 
 	@Inject
 	private ItemManager itemManager;
-
-	@Inject
-	private XpTrackerService xpTrackerService;
 
 	@Getter
 	private AgilitySession session;
@@ -218,14 +211,14 @@ public class AgilityPlugin extends Plugin
 
 		if (session != null && session.getCourse() == course)
 		{
-			session.incrementLapCount(client, xpTrackerService);
+			session.incrementLapCount(client);
 		}
 		else
 		{
 			session = new AgilitySession(course);
 			// New course found, reset lap count and set new course
 			session.resetLapCount();
-			session.incrementLapCount(client, xpTrackerService);
+			session.incrementLapCount(client);
 		}
 	}
 

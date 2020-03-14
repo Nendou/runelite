@@ -32,15 +32,19 @@ import net.runelite.api.Actor;
 import net.runelite.api.Client;
 import net.runelite.api.EquipmentInventorySlot;
 import net.runelite.api.GameState;
-import net.runelite.api.Hitsplat;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.NPC;
+import net.runelite.api.NPCComposition;
+import net.runelite.api.Player;
+import net.runelite.api.Skill;
 import net.runelite.api.VarPlayer;
+import net.runelite.api.events.FakeXpDrop;
 import net.runelite.api.events.GameStateChanged;
-import net.runelite.api.events.HitsplatApplied;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.NpcDespawned;
+import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
@@ -50,6 +54,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 import net.runelite.client.ws.PartyService;
 import net.runelite.client.ws.WSClient;
+import org.apache.commons.lang3.ArrayUtils;
 
 @PluginDescriptor(
 	name = "Special Attack Counter",
@@ -61,7 +66,10 @@ public class SpecialCounterPlugin extends Plugin
 {
 	private int currentWorld = -1;
 	private int specialPercentage = -1;
-	private NPC specedNPC;
+	private int specialHitpointsExperience = -1;
+	private int specialHitpointsGained = -1;
+	private boolean specialUsed;
+	private double modifier = 1d;
 
 	private SpecialWeapon specialWeapon;
 	private final Set<Integer> interactedNpcIds = new HashSet<>();
@@ -129,61 +137,105 @@ public class SpecialCounterPlugin extends Plugin
 		this.specialPercentage = specialPercentage;
 		this.specialWeapon = usedSpecialWeapon();
 
-		Actor interacting = client.getLocalPlayer().getInteracting();
-		if (interacting instanceof NPC)
+		checkInteracting();
+
+		specialUsed = true;
+		specialHitpointsExperience = client.getSkillExperience(Skill.HITPOINTS);
+		specialHitpointsGained = -1;
+	}
+
+	@Subscribe
+	public void onStatChanged(StatChanged statChanged)
+	{
+		if (specialUsed && statChanged.getSkill() == Skill.HITPOINTS)
 		{
-			specedNPC = (NPC) interacting;
+			specialHitpointsGained = statChanged.getXp() - specialHitpointsExperience;
 		}
 	}
 
 	@Subscribe
-	public void onHitsplatApplied(HitsplatApplied hitsplatApplied)
+	public void onFakeXpDrop(FakeXpDrop fakeXpDrop)
 	{
-		Actor target = hitsplatApplied.getActor();
-		Hitsplat hitsplat = hitsplatApplied.getHitsplat();
-		if (hitsplat.getHitsplatType() != Hitsplat.HitsplatType.DAMAGE_ME || !(target instanceof NPC))
+		if (specialUsed && fakeXpDrop.getSkill() == Skill.HITPOINTS)
+		{
+			specialHitpointsGained = fakeXpDrop.getXp();
+		}
+	}
+
+	@Subscribe
+	private void onGameTick(GameTick tick)
+	{
+		if (client.getGameState() != GameState.LOGGED_IN)
 		{
 			return;
 		}
 
-		NPC npc = (NPC) target;
-		int interactingId = npc.getId();
-
-		// If this is a new NPC reset the counters
-		if (!interactedNpcIds.contains(interactingId))
+		int interactingId = checkInteracting();
+		if (interactingId > -1 && specialUsed)
 		{
-			removeCounters();
-			addInteracting(interactingId);
-		}
+			int deltaExperience = specialHitpointsGained;
 
-		if (specedNPC == hitsplatApplied.getActor())
-		{
-			specedNPC = null;
+			specialUsed = false;
 
-			if (specialWeapon != null)
+			if (deltaExperience > 0)
 			{
-				int hit = getHit(specialWeapon, hitsplat);
-
-				updateCounter(specialWeapon, null, hit);
-
-				if (!party.getMembers().isEmpty())
+				if (specialWeapon != null)
 				{
-					final SpecialCounterUpdate specialCounterUpdate = new SpecialCounterUpdate(interactingId, specialWeapon, hit);
-					specialCounterUpdate.setMemberId(party.getLocalMember().getMemberId());
-					wsClient.send(specialCounterUpdate);
+					int hit = getHit(specialWeapon, deltaExperience);
+
+					updateCounter(specialWeapon, null, hit);
+
+					if (!party.getMembers().isEmpty())
+					{
+						final SpecialCounterUpdate specialCounterUpdate = new SpecialCounterUpdate(interactingId, specialWeapon, hit);
+						specialCounterUpdate.setMemberId(party.getLocalMember().getMemberId());
+						wsClient.send(specialCounterUpdate);
+					}
 				}
 			}
 		}
 	}
 
+	private int checkInteracting()
+	{
+		Player localPlayer = client.getLocalPlayer();
+		Actor interacting = localPlayer.getInteracting();
+
+		if (interacting instanceof NPC)
+		{
+			NPC npc = (NPC) interacting;
+			NPCComposition composition = npc.getComposition();
+			int interactingId = npc.getId();
+
+			if (!ArrayUtils.contains(composition.getActions(), "Attack"))
+			{
+				// Skip over non attackable npcs so that eg. talking to bankers doesn't reset
+				// the counters.
+				return -1;
+			}
+
+			if (!interactedNpcIds.contains(interactingId))
+			{
+				removeCounters();
+				addInteracting(interactingId);
+			}
+
+			return interactingId;
+		}
+
+		return -1;
+	}
+
 	private void addInteracting(int npcId)
 	{
+		modifier = 1d;
 		interactedNpcIds.add(npcId);
 
 		// Add alternate forms of bosses
 		final Boss boss = Boss.getBoss(npcId);
 		if (boss != null)
 		{
+			modifier = boss.getModifier();
 			interactedNpcIds.addAll(boss.getIds());
 		}
 	}
@@ -192,12 +244,6 @@ public class SpecialCounterPlugin extends Plugin
 	public void onNpcDespawned(NpcDespawned npcDespawned)
 	{
 		NPC actor = npcDespawned.getNpc();
-
-		// if the NPC despawns before the hitsplat is shown
-		if (specedNPC == actor)
-		{
-			specedNPC = null;
-		}
 
 		if (actor.isDead() && interactedNpcIds.contains(actor.getId()))
 		{
@@ -310,8 +356,18 @@ public class SpecialCounterPlugin extends Plugin
 		}
 	}
 
-	private int getHit(SpecialWeapon specialWeapon, Hitsplat hitsplat)
+	private int getHit(SpecialWeapon specialWeapon, int deltaExperience)
 	{
-		return specialWeapon.isDamage() ? hitsplat.getAmount() : 1;
+		double modifierBase = 1d / modifier;
+		double damageOutput = (deltaExperience * modifierBase) / 1.3333d;
+
+		if (!specialWeapon.isDamage())
+		{
+			return 1;
+		}
+		else
+		{
+			return (int) Math.round(damageOutput);
+		}
 	}
 }

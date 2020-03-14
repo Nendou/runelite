@@ -109,13 +109,11 @@ public class HotColdSolverTest
 		final HotColdSolver solver = createHotColdSolver();
 		final Set<HotColdLocation> firstLocationsSet = Sets.immutableEnumSet(
 			HotColdLocation.FELDIP_HILLS_GNOME_GLITER,
-			HotColdLocation.FELDIP_HILLS_RANTZ,
 			HotColdLocation.FELDIP_HILLS_RED_CHIN,
 			HotColdLocation.KARAMJA_KHARAZI_NE,
 			HotColdLocation.KARAMJA_CRASH_ISLAND);
 		final Set<HotColdLocation> secondLocationsSet = firstLocationsSet.stream()
-			.filter(location -> location != HotColdLocation.FELDIP_HILLS_GNOME_GLITER
-				&& location != HotColdLocation.FELDIP_HILLS_RANTZ)
+			.filter(location -> location != HotColdLocation.FELDIP_HILLS_GNOME_GLITER)
 			.collect(Collectors.toSet());
 		final Set<HotColdLocation> thirdLocationSet = secondLocationsSet.stream()
 			.filter(location -> location != HotColdLocation.FELDIP_HILLS_RED_CHIN)
@@ -141,6 +139,7 @@ public class HotColdSolverTest
 				HotColdLocation.KARAMJA_KHARAZI_SW,
 				HotColdLocation.KARAMJA_CRASH_ISLAND,
 				HotColdLocation.FELDIP_HILLS_SW,
+				HotColdLocation.FELDIP_HILLS_RANTZ,
 				HotColdLocation.FELDIP_HILLS_RED_CHIN,
 				HotColdLocation.FELDIP_HILLS_SE));
 

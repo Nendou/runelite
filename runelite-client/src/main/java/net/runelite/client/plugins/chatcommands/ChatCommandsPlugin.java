@@ -25,7 +25,6 @@
  */
 package net.runelite.client.plugins.chatcommands;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Provides;
 import java.io.IOException;
 import java.util.EnumSet;
@@ -48,14 +47,11 @@ import net.runelite.api.VarPlayer;
 import net.runelite.api.Varbits;
 import net.runelite.api.WorldType;
 import net.runelite.api.events.ChatMessage;
-import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.vars.AccountType;
 import net.runelite.api.widgets.Widget;
-import static net.runelite.api.widgets.WidgetID.ADVENTURE_LOG_ID;
-import static net.runelite.api.widgets.WidgetID.COUNTERS_LOG_GROUP_ID;
 import static net.runelite.api.widgets.WidgetID.KILL_LOGS_GROUP_ID;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.chat.ChatColorType;
@@ -70,7 +66,7 @@ import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.util.QuantityFormatter;
-import net.runelite.client.util.Text;
+import static net.runelite.client.util.Text.sanitize;
 import net.runelite.http.api.chat.ChatClient;
 import net.runelite.http.api.chat.Duels;
 import net.runelite.http.api.hiscore.HiscoreClient;
@@ -99,16 +95,11 @@ public class ChatCommandsPlugin extends Plugin
 	private static final Pattern NEW_PB_PATTERN = Pattern.compile("(?i)^(?:Fight |Lap |Challenge |Corrupted challenge )?duration: <col=ff0000>([0-9:]+)</col> \\(new personal best\\)");
 	private static final Pattern DUEL_ARENA_WINS_PATTERN = Pattern.compile("You (were defeated|won)! You have(?: now)? won (\\d+) duels?");
 	private static final Pattern DUEL_ARENA_LOSSES_PATTERN = Pattern.compile("You have(?: now)? lost (\\d+) duels?");
-	private static final Pattern ADVENTURE_LOG_TITLE_PATTERN = Pattern.compile("The Exploits of (.+)");
-	private static final Pattern ADVENTURE_LOG_PB_PATTERN = Pattern.compile("([a-zA-Z]+(?: [a-zA-Z]+)*) Fastest (?:kill|run): ([0-9:]+)");
 
 	private static final String TOTAL_LEVEL_COMMAND_STRING = "!total";
 	private static final String PRICE_COMMAND_STRING = "!price";
 	private static final String LEVEL_COMMAND_STRING = "!lvl";
-	private static final String BOUNTY_HUNTER_HUNTER_COMMAND = "!bh";
-	private static final String BOUNTY_HUNTER_ROGUE_COMMAND = "!bhrogue";
 	private static final String CLUES_COMMAND_STRING = "!clues";
-	private static final String LAST_MAN_STANDING_COMMAND = "!lms";
 	private static final String KILLCOUNT_COMMAND_STRING = "!kc";
 	private static final String CMB_COMMAND_STRING = "!cmb";
 	private static final String QP_COMMAND_STRING = "!qp";
@@ -116,15 +107,10 @@ public class ChatCommandsPlugin extends Plugin
 	private static final String GC_COMMAND_STRING = "!gc";
 	private static final String DUEL_ARENA_COMMAND = "!duels";
 
-	@VisibleForTesting
-	static final int ADV_LOG_EXPLOITS_TEXT_INDEX = 1;
-
+	private final HiscoreClient hiscoreClient = new HiscoreClient();
 	private final ChatClient chatClient = new ChatClient();
 
-	private boolean bossLogLoaded;
-	private boolean advLogLoaded;
-	private boolean countersLogLoaded;
-	private String pohOwner;
+	private boolean logKills;
 	private HiscoreEndpoint hiscoreEndpoint; // hiscore endpoint for current player
 	private String lastBossKill;
 	private int lastPb = -1;
@@ -156,9 +142,6 @@ public class ChatCommandsPlugin extends Plugin
 	@Inject
 	private ChatKeyboardListener chatKeyboardListener;
 
-	@Inject
-	private HiscoreClient hiscoreClient;
-
 	@Override
 	public void startUp()
 	{
@@ -168,10 +151,7 @@ public class ChatCommandsPlugin extends Plugin
 		chatCommandManager.registerCommandAsync(CMB_COMMAND_STRING, this::combatLevelLookup);
 		chatCommandManager.registerCommand(PRICE_COMMAND_STRING, this::itemPriceLookup);
 		chatCommandManager.registerCommandAsync(LEVEL_COMMAND_STRING, this::playerSkillLookup);
-		chatCommandManager.registerCommandAsync(BOUNTY_HUNTER_HUNTER_COMMAND, this::bountyHunterHunterLookup);
-		chatCommandManager.registerCommandAsync(BOUNTY_HUNTER_ROGUE_COMMAND, this::bountyHunterRogueLookup);
 		chatCommandManager.registerCommandAsync(CLUES_COMMAND_STRING, this::clueLookup);
-		chatCommandManager.registerCommandAsync(LAST_MAN_STANDING_COMMAND, this::lastManStandingLookup);
 		chatCommandManager.registerCommandAsync(KILLCOUNT_COMMAND_STRING, this::killCountLookup, this::killCountSubmit);
 		chatCommandManager.registerCommandAsync(QP_COMMAND_STRING, this::questPointsLookup, this::questPointsSubmit);
 		chatCommandManager.registerCommandAsync(PB_COMMAND, this::personalBestLookup, this::personalBestSubmit);
@@ -394,65 +374,36 @@ public class ChatCommandsPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
-		if (client.getLocalPlayer() == null)
+		if (!logKills)
 		{
 			return;
 		}
 
-		if (advLogLoaded)
-		{
-			advLogLoaded = false;
+		logKills = false;
 
-			Widget adventureLog = client.getWidget(WidgetInfo.ADVENTURE_LOG);
-			Matcher advLogExploitsText = ADVENTURE_LOG_TITLE_PATTERN.matcher(adventureLog.getChild(ADV_LOG_EXPLOITS_TEXT_INDEX).getText());
-			if (advLogExploitsText.find())
-			{
-				pohOwner = advLogExploitsText.group(1);
-			}
+		Widget title = client.getWidget(WidgetInfo.KILL_LOG_TITLE);
+		Widget bossMonster = client.getWidget(WidgetInfo.KILL_LOG_MONSTER);
+		Widget bossKills = client.getWidget(WidgetInfo.KILL_LOG_KILLS);
+
+		if (title == null || bossMonster == null || bossKills == null
+			|| !"Boss Kill Log".equals(title.getText()))
+		{
+			return;
 		}
 
-		if (bossLogLoaded && (pohOwner == null || pohOwner.equals(client.getLocalPlayer().getName())))
+		Widget[] bossChildren = bossMonster.getChildren();
+		Widget[] killsChildren = bossKills.getChildren();
+
+		for (int i = 0; i < bossChildren.length; ++i)
 		{
-			bossLogLoaded = false;
+			Widget boss = bossChildren[i];
+			Widget kill = killsChildren[i];
 
-			Widget title = client.getWidget(WidgetInfo.KILL_LOG_TITLE);
-			Widget bossMonster = client.getWidget(WidgetInfo.KILL_LOG_MONSTER);
-			Widget bossKills = client.getWidget(WidgetInfo.KILL_LOG_KILLS);
-
-			if (title == null || bossMonster == null || bossKills == null
-				|| !"Boss Kill Log".equals(title.getText()))
+			String bossName = boss.getText().replace(":", "");
+			int kc = Integer.parseInt(kill.getText().replace(",", ""));
+			if (kc != getKc(bossName))
 			{
-				return;
-			}
-
-			Widget[] bossChildren = bossMonster.getChildren();
-			Widget[] killsChildren = bossKills.getChildren();
-
-			for (int i = 0; i < bossChildren.length; ++i)
-			{
-				Widget boss = bossChildren[i];
-				Widget kill = killsChildren[i];
-
-				String bossName = boss.getText().replace(":", "");
-				int kc = Integer.parseInt(kill.getText().replace(",", ""));
-				if (kc != getKc(longBossName(bossName)))
-				{
-					setKc(longBossName(bossName), kc);
-				}
-			}
-		}
-
-		if (countersLogLoaded && pohOwner.equals(client.getLocalPlayer().getName()))
-		{
-			countersLogLoaded = false;
-
-			String counterText = Text.sanitizeMultilineText(client.getWidget(WidgetInfo.COUNTERS_LOG_TEXT).getText());
-			Matcher mCounterText = ADVENTURE_LOG_PB_PATTERN.matcher(counterText);
-			while (mCounterText.find())
-			{
-				String bossName = mCounterText.group(1);
-				String pbTime = mCounterText.group(2);
-				setPb(longBossName(bossName), timeStringToSeconds(pbTime));
+				setKc(bossName, kc);
 			}
 		}
 	}
@@ -460,29 +411,14 @@ public class ChatCommandsPlugin extends Plugin
 	@Subscribe
 	public void onWidgetLoaded(WidgetLoaded widget)
 	{
-		switch (widget.getGroupId())
+		// don't load kc if in an instance, if the player is in another players poh
+		// and reading their boss log
+		if (widget.getGroupId() != KILL_LOGS_GROUP_ID || client.isInInstancedRegion())
 		{
-			case ADVENTURE_LOG_ID:
-				advLogLoaded = true;
-				break;
-			case KILL_LOGS_GROUP_ID:
-				bossLogLoaded = true;
-				break;
-			case COUNTERS_LOG_GROUP_ID:
-				countersLogLoaded = true;
-				break;
+			return;
 		}
-	}
 
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		switch (event.getGameState())
-		{
-			case LOADING:
-			case HOPPING:
-				pohOwner = null;
-		}
+		logKills = true;
 	}
 
 	@Subscribe
@@ -545,7 +481,7 @@ public class ChatCommandsPlugin extends Plugin
 		}
 		else
 		{
-			player = Text.sanitize(chatMessage.getName());
+			player = sanitize(chatMessage.getName());
 		}
 
 		search = longBossName(search);
@@ -626,7 +562,7 @@ public class ChatCommandsPlugin extends Plugin
 		}
 		else
 		{
-			player = Text.sanitize(chatMessage.getName());
+			player = sanitize(chatMessage.getName());
 		}
 
 		Duels duels;
@@ -683,7 +619,7 @@ public class ChatCommandsPlugin extends Plugin
 		}
 		else
 		{
-			player = Text.sanitize(chatMessage.getName());
+			player = sanitize(chatMessage.getName());
 		}
 
 		int qp;
@@ -757,7 +693,7 @@ public class ChatCommandsPlugin extends Plugin
 		}
 		else
 		{
-			player = Text.sanitize(chatMessage.getName());
+			player = sanitize(chatMessage.getName());
 		}
 
 		search = longBossName(search);
@@ -840,7 +776,7 @@ public class ChatCommandsPlugin extends Plugin
 		}
 		else
 		{
-			player = Text.sanitize(chatMessage.getName());
+			player = sanitize(chatMessage.getName());
 		}
 
 		int gc;
@@ -1007,27 +943,21 @@ public class ChatCommandsPlugin extends Plugin
 
 			final Skill hiscoreSkill = result.getSkill();
 
-			ChatMessageBuilder chatMessageBuilder = new ChatMessageBuilder()
+			final String response = new ChatMessageBuilder()
 				.append(ChatColorType.NORMAL)
 				.append("Level ")
 				.append(ChatColorType.HIGHLIGHT)
 				.append(skill.getName()).append(": ").append(String.valueOf(hiscoreSkill.getLevel()))
-				.append(ChatColorType.NORMAL);
-			if (hiscoreSkill.getExperience() != -1)
-			{
-				chatMessageBuilder.append(" Experience: ")
-					.append(ChatColorType.HIGHLIGHT)
-					.append(String.format("%,d", hiscoreSkill.getExperience()))
-					.append(ChatColorType.NORMAL);
-			}
-			if (hiscoreSkill.getRank() != -1)
-			{
-				chatMessageBuilder.append(" Rank: ")
-					.append(ChatColorType.HIGHLIGHT)
-					.append(String.format("%,d", hiscoreSkill.getRank()));
-			}
+				.append(ChatColorType.NORMAL)
+				.append(" Experience: ")
+				.append(ChatColorType.HIGHLIGHT)
+				.append(String.format("%,d", hiscoreSkill.getExperience()))
+				.append(ChatColorType.NORMAL)
+				.append(" Rank: ")
+				.append(ChatColorType.HIGHLIGHT)
+				.append(String.format("%,d", hiscoreSkill.getRank()))
+				.build();
 
-			final String response = chatMessageBuilder.build();
 			log.debug("Setting response {}", response);
 			final MessageNode messageNode = chatMessage.getMessageNode();
 			messageNode.setRuneLiteFormatMessage(response);
@@ -1056,7 +986,7 @@ public class ChatCommandsPlugin extends Plugin
 		}
 		else
 		{
-			player = Text.sanitize(chatMessage.getName());
+			player = sanitize(chatMessage.getName());
 		}
 
 		try
@@ -1122,102 +1052,6 @@ public class ChatCommandsPlugin extends Plugin
 		catch (IOException ex)
 		{
 			log.warn("Error fetching hiscore data", ex);
-		}
-	}
-
-	private void bountyHunterHunterLookup(ChatMessage chatMessage, String message)
-	{
-		if (!config.bh())
-		{
-			return;
-		}
-
-		minigameLookup(chatMessage, HiscoreSkill.BOUNTY_HUNTER_HUNTER);
-	}
-
-	private void bountyHunterRogueLookup(ChatMessage chatMessage, String message)
-	{
-		if (!config.bhRogue())
-		{
-			return;
-		}
-
-		minigameLookup(chatMessage, HiscoreSkill.BOUNTY_HUNTER_ROGUE);
-	}
-
-	private void lastManStandingLookup(ChatMessage chatMessage, String message)
-	{
-		if (!config.lms())
-		{
-			return;
-		}
-
-		minigameLookup(chatMessage, HiscoreSkill.LAST_MAN_STANDING);
-	}
-
-	private void minigameLookup(ChatMessage chatMessage, HiscoreSkill minigame)
-	{
-		try
-		{
-			final Skill hiscoreSkill;
-			final HiscoreLookup lookup = getCorrectLookupFor(chatMessage);
-			final HiscoreResult result = hiscoreClient.lookup(lookup.getName(), lookup.getEndpoint());
-
-			if (result == null)
-			{
-				log.warn("error looking up {} score: not found", minigame.getName().toLowerCase());
-				return;
-			}
-
-			switch (minigame)
-			{
-				case BOUNTY_HUNTER_HUNTER:
-					hiscoreSkill = result.getBountyHunterHunter();
-					break;
-				case BOUNTY_HUNTER_ROGUE:
-					hiscoreSkill = result.getBountyHunterRogue();
-					break;
-				case LAST_MAN_STANDING:
-					hiscoreSkill = result.getLastManStanding();
-					break;
-				default:
-					log.warn("error looking up {} score: not implemented", minigame.getName().toLowerCase());
-					return;
-			}
-
-			int score = hiscoreSkill.getLevel();
-			if (score == -1)
-			{
-				return;
-			}
-
-			ChatMessageBuilder chatMessageBuilder = new ChatMessageBuilder()
-				.append(ChatColorType.NORMAL)
-				.append(minigame.getName())
-				.append(" Score: ")
-				.append(ChatColorType.HIGHLIGHT)
-				.append(Integer.toString(score));
-
-			int rank = hiscoreSkill.getRank();
-			if (rank != -1)
-			{
-				chatMessageBuilder.append(ChatColorType.NORMAL)
-					.append(" Rank: ")
-					.append(ChatColorType.HIGHLIGHT)
-					.append(String.format("%,d", rank));
-			}
-
-			String response = chatMessageBuilder.build();
-
-			log.debug("Setting response {}", response);
-			final MessageNode messageNode = chatMessage.getMessageNode();
-			messageNode.setRuneLiteFormatMessage(response);
-			chatMessageManager.update(messageNode);
-			client.refreshChat();
-		}
-		catch (IOException ex)
-		{
-			log.warn("error looking up {}", minigame.getName().toLowerCase(), ex);
 		}
 	}
 
@@ -1324,7 +1158,7 @@ public class ChatCommandsPlugin extends Plugin
 	private HiscoreLookup getCorrectLookupFor(final ChatMessage chatMessage)
 	{
 		Player localPlayer = client.getLocalPlayer();
-		final String player = Text.sanitize(chatMessage.getName());
+		final String player = sanitize(chatMessage.getName());
 
 		// If we are sending the message then just use the local hiscore endpoint for the world
 		if (chatMessage.getType().equals(ChatMessageType.PRIVATECHATOUT)
@@ -1454,7 +1288,6 @@ public class ChatCommandsPlugin extends Plugin
 				return "Corporeal Beast";
 
 			case "jad":
-			case "tzhaar fight cave":
 				return "TzTok-Jad";
 
 			case "kq":
@@ -1574,17 +1407,12 @@ public class ChatCommandsPlugin extends Plugin
 			// The Gauntlet
 			case "gaunt":
 			case "gauntlet":
-			case "the gauntlet":
 				return "Gauntlet";
 
 			// Corrupted Gauntlet
 			case "cgaunt":
 			case "cgauntlet":
-			case "the corrupted gauntlet":
 				return "Corrupted Gauntlet";
-
-			case "the nightmare":
-				return "Nightmare";
 
 			default:
 				return WordUtils.capitalize(boss);

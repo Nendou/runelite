@@ -144,9 +144,5 @@ public class PohOverlay extends Overlay
 		{
 			iconList.add(PohIcons.XERICSTALISMAN);
 		}
-		if (config.showMythicalCape())
-		{
-			iconList.add(PohIcons.MYTHICALCAPE);
-		}
 	}
 }

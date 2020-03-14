@@ -305,11 +305,7 @@ public class ExternalPluginManager
 						});
 					}
 				}
-				catch (ThreadDeath e)
-				{
-					throw e;
-				}
-				catch (Throwable e)
+				catch (Exception e)
 				{
 					log.warn("Unable to start or load external plugin \"{}\"", manifest.getInternalName(), e);
 					if (newPlugins != null)
