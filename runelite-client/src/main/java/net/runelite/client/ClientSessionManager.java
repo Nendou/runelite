@@ -101,6 +101,16 @@ public class ClientSessionManager
 			return;
 		}
 
+<<<<<<< HEAD
+=======
+		boolean loggedIn = false;
+		if (client != null)
+		{
+			GameState gameState = client.getGameState();
+			loggedIn = gameState.getState() >= GameState.LOADING.getState();
+		}
+
+>>>>>>> 18a9a60b7d3b9bcfa55e89f364986628aefd020a
 		try
 		{
 			sessionClient.ping(sessionId);
